@@ -1,0 +1,292 @@
+
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Labirynt - Level Up!</title>
+<style>
+  body {
+    background: #171729;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 12px;
+  }
+
+  h1 { color: #70e1ff; }
+
+  #panel {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 15px;
+  }
+
+  .stat {
+    background: #30304b;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  #level { color: #70e1ff; }
+  #trudnosc { color: #37e879; }
+
+  #labirynt {
+    display: grid;
+    gap: 2px;
+    justify-content: center;
+    margin: 20px auto;
+  }
+
+  .pole {
+    width: 23px;
+    height: 23px;
+    background: #30304b;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+  }
+
+  .sciana { background: #7777ff; }
+  .gracz { background: #00cfff; }
+  .meta { background: #37e879; }
+
+  body.hard .sciana {
+    background: #e53935;
+    box-shadow: inset 0 0 3px #ff7777;
+  }
+
+  body.hard h1 { color: #ff4545; }
+  body.hard #level { color: #ff4545; }
+  body.hard #trudnosc { color: #ff4545; }
+
+  button {
+    padding: 12px 17px;
+    margin: 4px;
+    border: none;
+    border-radius: 10px;
+    background: #5555ff;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+  }
+
+  button:hover { filter: brightness(1.2); }
+
+  #komunikat {
+    min-height: 28px;
+    font-size: 19px;
+    font-weight: bold;
+    color: #37e879;
+  }
+
+  body.hard #komunikat { color: #ff4545; }
+
+  @media (max-width: 500px) {
+    .pole {
+      width: min(5.2vw, 23px);
+      height: min(5.2vw, 23px);
+      font-size: 11px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<h1>🧩 LABIRYNT</h1>
+
+<div id="panel">
+  <div class="stat">⭐ LEVEL: <span id="level">1</span></div>
+  <div class="stat">🔥 TRYB: <span id="trudnosc">NORMALNY</span></div>
+</div>
+
+<p>Znajdź zielone wyjście! Każdy poziom jest losowy.</p>
+
+<div id="labirynt"></div>
+<p id="komunikat"></p>
+
+<div>
+  <button onclick="ruch(0,-1)">⬆️</button><br>
+  <button onclick="ruch(-1,0)">⬅️</button>
+  <button onclick="ruch(0,1)">⬇️</button>
+  <button onclick="ruch(1,0)">➡️</button>
+</div>
+
+<br>
+<button onclick="restart()">🔄 Nowa gra</button>
+
+<script>
+let level = 1;
+let mapa = [];
+let gracz;
+let koniec = false;
+let rozmiar;
+
+function aktualizujPoziom() {
+  document.getElementById("level").textContent = level;
+
+  // Co 10 poziomów wchodzisz w czerwony, trudniejszy tryb.
+  const hard = level % 10 === 0;
+  document.body.classList.toggle("hard", hard);
+
+  if (hard) {
+    document.getElementById("trudnosc").textContent =
+      "🔴 TRUDNY";
+  } else if (level >= 5) {
+    document.getElementById("trudnosc").textContent =
+      "🟠 ŚREDNI";
+  } else {
+    document.getElementById("trudnosc").textContent =
+      "🟢 NORMALNY";
+  }
+}
+
+function generujMape() {
+  // Mapa rośnie co 5 poziomów, maksymalnie do 31 x 31.
+  rozmiar = Math.min(11 + Math.floor((level - 1) / 5) * 2, 31);
+
+  // Wymuszamy nieparzysty rozmiar.
+  if (rozmiar % 2 === 0) rozmiar++;
+
+  mapa = Array.from(
+    { length: rozmiar },
+    () => Array(rozmiar).fill("#")
+  );
+
+  function kop(x, y) {
+    mapa[y][x] = ".";
+
+    const kierunki = [[0,-2], [0,2], [-2,0], [2,0]];
+
+    for (let i = kierunki.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [kierunki[i], kierunki[j]] =
+        [kierunki[j], kierunki[i]];
+    }
+
+    for (const [dx, dy] of kierunki) {
+      const nx = x + dx;
+      const ny = y + dy;
+
+      if (
+        nx > 0 && nx < rozmiar - 1 &&
+        ny > 0 && ny < rozmiar - 1 &&
+        mapa[ny][nx] === "#"
+      ) {
+        mapa[y + dy / 2][x + dx / 2] = ".";
+        kop(nx, ny);
+      }
+    }
+  }
+
+  kop(1, 1);
+
+  // Wyjście w prawym dolnym rogu.
+  mapa[rozmiar - 2][rozmiar - 1] = ".";
+  mapa[rozmiar - 2][rozmiar - 2] = ".";
+}
+
+function restart() {
+  level = 1;
+  nowyPoziom();
+}
+
+function nowyPoziom() {
+  koniec = false;
+  gracz = { x: 1, y: 1 };
+  generujMape();
+  aktualizujPoziom();
+
+  document.getElementById("komunikat").textContent =
+    level % 10 === 0
+      ? "🔴 UWAGA! CZERWONY POZIOM!"
+      : "Powodzenia!";
+
+  rysuj();
+}
+
+function rysuj() {
+  const plansza = document.getElementById("labirynt");
+  plansza.innerHTML = "";
+  plansza.style.gridTemplateColumns =
+    `repeat(${rozmiar}, min(5.2vw, 23px))`;
+
+  for (let y = 0; y < rozmiar; y++) {
+    for (let x = 0; x < rozmiar; x++) {
+      const pole = document.createElement("div");
+      pole.className = "pole";
+
+      if (mapa[y][x] === "#") {
+        pole.classList.add("sciana");
+      }
+
+      if (x === rozmiar - 1 && y === rozmiar - 2) {
+        pole.classList.add("meta");
+        pole.textContent = "🏁";
+      }
+
+      if (x === gracz.x && y === gracz.y) {
+        pole.className = "pole gracz";
+        pole.textContent = "😀";
+      }
+
+      plansza.appendChild(pole);
+    }
+  }
+}
+
+function ruch(dx, dy) {
+  if (koniec) return;
+
+  const nx = gracz.x + dx;
+  const ny = gracz.y + dy;
+
+  if (
+    nx < 0 || nx >= rozmiar ||
+    ny < 0 || ny >= rozmiar ||
+    mapa[ny][nx] === "#"
+  ) return;
+
+  gracz.x = nx;
+  gracz.y = ny;
+
+  if (nx === rozmiar - 1 && ny === rozmiar - 2) {
+    koniec = true;
+    document.getElementById("komunikat").textContent =
+      "🎉 POZIOM " + level + " UKOŃCZONY!";
+
+    // Krótka chwila na zobaczenie komunikatu, potem kolejny poziom.
+    setTimeout(() => {
+      level++;
+      nowyPoziom();
+    }, 1000);
+  }
+
+  rysuj();
+}
+
+document.addEventListener("keydown", function(e) {
+  const klawisze = {
+    ArrowUp: [0,-1],
+    ArrowDown: [0,1],
+    ArrowLeft: [-1,0],
+    ArrowRight: [1,0]
+  };
+
+  if (klawisze[e.key]) {
+    e.preventDefault();
+    ruch(...klawisze[e.key]);
+  }
+});
+
+nowyPoziom();
+</script>
+
+</body>
+</html>
